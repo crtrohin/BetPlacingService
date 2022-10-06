@@ -1,9 +1,17 @@
 package com.betting.service
 
+import akka.Done
 import com.betting.domain.Bet
+import com.betting.repository.BetRepository
+
+import scala.concurrent.Future
 
 object BetServiceImpl {
-  def placeBet(bet: Bet): Unit = {
-    println(s"The bet with id=${bet.id} and stake=${bet.stake} was placed!")
+  def saveBet(bet: Bet): Future[Done] = {
+    BetRepository.saveBet(bet)
+  }
+
+  def getBet(betId: Long): Future[Option[Bet]] = {
+    BetRepository.getBet(betId)
   }
 }
