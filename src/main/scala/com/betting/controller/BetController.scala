@@ -7,22 +7,31 @@ import akka.http.scaladsl.server.Route
 import com.betting.domain.{Bet, Protocols}
 import akka.http.scaladsl.server.Directives._
 import com.betting.service.BetServiceImpl
+import com.couchbase.client.scala.json.JsonObjectSafe
+import com.couchbase.client.scala.kv.MutationResult
+
+import scala.util.{Failure, Success, Try}
 
 trait BetController extends SprayJsonSupport with Protocols {
   val routes: Route =
     concat(
       get {
         pathPrefix("bets" / LongNumber) { betId =>
-          val maybeBet = BetServiceImpl.getBet(betId)
-
-          onSuccess(maybeBet) {
-            case Some(bet) => {
-              println(s"Bet with id=${betId}: ${bet}")
-              complete(bet)
+          val foundBet = BetServiceImpl.getBet(betId)
+          foundBet match {
+            case Success(result) => {
+              result.contentAs[JsonObjectSafe] match {
+                case Success(json) =>
+                  println(s"Bet with id=${betId}:${json}")
+                  complete(s"Bet with id=${betId}:${json}")
+                case Failure(_) =>
+                  println(s"Bet with id=${betId} was not found!")
+                  complete(StatusCodes.NotFound)
+              }
             }
-            case None => {
+            case Failure(_) => {
               println(s"Bet with id=${betId} was not found!")
-              complete(StatusCodes.NotFound)
+              complete(s"Bet with id=${betId} was not found!")
             }
           }
         }
@@ -30,10 +39,13 @@ trait BetController extends SprayJsonSupport with Protocols {
       post {
         path("bets") {
           entity(as[Bet]) { bet =>
-            val saved = BetServiceImpl.saveBet(bet)
-            onSuccess(saved) { _ =>
-              println(s"Bet with id=${bet.id}, stake=${bet.stake}, selectionId=${bet.selectionId} was successfully created!")
-              complete("Bet created!")
+            val savedBet: Try[MutationResult] = BetServiceImpl.saveBet(bet)
+            savedBet match {
+              case Success(_) =>
+                println(s"Bet with id=${bet.id}, stake=${bet.stake} and selectionId=${bet.selectionId} was created!")
+                complete("Bet created!")
+              case Failure(exception) =>
+                complete("Error: " + exception)
             }
           }
         }

@@ -1,22 +1,22 @@
 package com.betting.repository
 
-import akka.Done
-import com.betting.BetApplication.system
-import com.betting.domain.Bet
+import com.betting.components.CouchbaseConnectionImpl
+import com.betting.domain.{Bet, Protocols}
+import com.couchbase.client.scala.codec.JsonSerializer.CirceEncode
+import com.couchbase.client.scala.kv.{GetResult, MutationResult}
+import io.circe.syntax.EncoderOps
 
-import scala.concurrent.Future
+import scala.util.Try
 
-object BetRepository {
-  import system.dispatcher
+object BetRepository extends Protocols {
+  val db = new CouchbaseConnectionImpl
 
-  var bets: List[Bet] = Nil
-
-  def getBet(id: Long): Future[Option[Bet]] = Future {
-    bets.find(b => b.id == id)
+  def getBet(id: Long): Try[GetResult] = {
+    db.collection.get(id.toString)
   }
 
-  def saveBet(bet: Bet): Future[Done] = {
-    bets = bets :+ bet
-    Future {Done}
+  def saveBet(bet: Bet): Try[MutationResult] = {
+    val docId = bet.id.toString
+    db.collection.upsert(docId, bet.asJson)(CirceEncode)
   }
 }

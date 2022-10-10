@@ -18,5 +18,9 @@ lazy val root = (project in file(".")).
       "com.typesafe.akka"     %% "akka-http-testkit"        % akkaHttpVersion % Test,
       "com.typesafe.akka"     %% "akka-actor-testkit-typed" % akkaVersion     % Test,
       "org.scalatest"         %% "scalatest"                % "3.2.14"         % Test,
-      "com.couchbase.client"  %% "scala-client"             % "1.3.4"
+      "com.couchbase.client"  %% "scala-client"             % "1.3.4",
+      "io.circe" %% "circe-generic" % "0.14.3",
+      "io.circe" %% "circe-core" % "0.14.3",
+      "io.circe" %% "circe-parser" % "0.14.3"
+
 ))
