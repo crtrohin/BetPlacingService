@@ -4,14 +4,13 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import spray.json.DefaultJsonProtocol
 
-case class Bet(id: Long, stake: Long, selectionId: Long)
+case class Bet(betId: Long, stake: Long, selectionId: Long, accountId: Long)
 
-// Marshalling and unmarshalling
-trait Protocols extends DefaultJsonProtocol {
-  implicit val betFormat = jsonFormat3(Bet)
+trait BetProtocols extends DefaultJsonProtocol {
+  implicit val betFormat = jsonFormat4(Bet)
   implicit val betEncoder: Encoder[Bet] = bet => Json.obj(
-    "id" -> bet.id.asJson,
+    "betId" -> bet.betId.asJson,
     "stake" -> bet.stake.asJson,
-    "selectionId" -> bet.selectionId.asJson
-  )
+    "selectionId" -> bet.selectionId.asJson,
+    "accountId" -> bet.accountId.asJson)
 }
