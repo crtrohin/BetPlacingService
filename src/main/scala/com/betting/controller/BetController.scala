@@ -59,6 +59,28 @@ trait BetController extends BetProtocols with SprayJsonSupport {
               complete("Failure")
           }
         }
+      },get {
+        pathPrefix("events" / LongNumber / "bets") { eventId =>
+          val foundBets: Try[QueryResult] = BetServiceImpl.getBetByEventId(eventId)
+          foundBets match {
+            case Success(value) =>
+              value.rowsAs[JsonObject] match {
+                case Success(row) if (row.size != 0) =>
+                  println(s"Bets of the event with id=${eventId} are: ")
+                  row.toArray.map(x => x.toString()).map(x => println(x))
+                  complete("Success")
+                case Success(row) if (row.size == 0) =>
+                  println(s"No bets were found for event with id=${eventId}")
+                  complete(s"No bets were found for event with id=${eventId}")
+                case Failure(ex:Exception) =>
+                  println(s"Exception: ${ex}")
+                  complete("Failure")
+              }
+            case Failure(ex: Exception) =>
+              println(s"Exception: ${ex}")
+              complete("Failure")
+          }
+        }
       },
       post {
         path("bets") {
@@ -66,7 +88,7 @@ trait BetController extends BetProtocols with SprayJsonSupport {
             val savedBet: Try[MutationResult] = BetServiceImpl.placeBet(bet)
             savedBet match {
               case Success(_) =>
-                println(s"Bet with id=${bet.betId}, stake=${bet.stake}, selectionId=${bet.selectionId} was created!")
+                println(s"Bet with id=${bet.betId}, stake=${bet.stake}, eventId=${bet.eventId} was created!")
                 complete("Bet created!")
               case Failure(exception) =>
                 complete("Error: " + exception)

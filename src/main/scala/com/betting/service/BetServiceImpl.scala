@@ -5,7 +5,6 @@ import com.betting.repository.BetRepository
 import com.couchbase.client.scala.kv.{GetResult, MutationResult}
 import com.couchbase.client.scala.query.QueryResult
 
-import scala.concurrent.Future
 import scala.util.Try
 
 object BetServiceImpl extends BetProtocols{
@@ -21,5 +20,7 @@ object BetServiceImpl extends BetProtocols{
     BetRepository.getBetByAccountId(accountId)
   }
 
-
+  def getBetByEventId(eventId: Long): Try[QueryResult] = {
+    BetRepository.getBetByEventId(eventId)
+  }
 }

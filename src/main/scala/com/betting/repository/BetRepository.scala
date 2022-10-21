@@ -31,4 +31,15 @@ object BetRepository extends BetProtocols {
       )
     )
   }
+
+  def getBetByEventId(eventId: Long): Try[QueryResult] = {
+    val stmt = """SELECT * FROM default:placedBets._default.bets bet
+                 |WHERE bet.eventId = $eventId;""".stripMargin
+    db.cluster.query(
+      stmt,
+      QueryOptions().parameters(
+        QueryParameters.Named(Map("eventId" -> eventId))
+      )
+    )
+  }
 }
