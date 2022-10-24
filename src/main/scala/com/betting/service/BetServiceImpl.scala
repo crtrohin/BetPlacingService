@@ -1,17 +1,26 @@
 package com.betting.service
 
-import akka.Done
-import com.betting.domain.Bet
+import com.betting.domain.{Bet, BetProtocols}
 import com.betting.repository.BetRepository
+import com.couchbase.client.scala.kv.{GetResult, MutationResult}
+import com.couchbase.client.scala.query.QueryResult
 
-import scala.concurrent.Future
+import scala.util.Try
 
-object BetServiceImpl {
-  def saveBet(bet: Bet): Future[Done] = {
-    BetRepository.saveBet(bet)
+object BetServiceImpl extends BetProtocols{
+  def placeBet(bet: Bet): Try[MutationResult] = {
+    BetRepository.placeBet(bet)
   }
 
-  def getBet(betId: Long): Future[Option[Bet]] = {
+  def getBet(betId: Long): Try[GetResult] = {
     BetRepository.getBet(betId)
+  }
+
+  def getBetByAccountId(accountId: Long): Try[QueryResult] = {
+    BetRepository.getBetByAccountId(accountId)
+  }
+
+  def getBetByEventId(eventId: Long): Try[QueryResult] = {
+    BetRepository.getBetByEventId(eventId)
   }
 }
