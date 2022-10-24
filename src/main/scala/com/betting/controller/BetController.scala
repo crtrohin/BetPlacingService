@@ -2,23 +2,22 @@ package com.betting.controller
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.{ResponseEntity, StatusCodes}
-import akka.http.scaladsl.server.Directives.{as, complete, entity, path}
+import akka.http.scaladsl.model.{StatusCodes}
+import akka.http.scaladsl.server.Directives.{as, complete, entity}
 import akka.http.scaladsl.server.Route
-import com.betting.domain.{Bet, BetProtocols, Event}
+import com.betting.domain.{Bet, BetProtocols}
 import akka.http.scaladsl.server.Directives._
-import com.betting.service.{BetServiceImpl, TradingService}
+import com.betting.service.{BetPlacementValidation, BetServiceImpl}
 import com.couchbase.client.scala.json.JsonObjectSafe
 import com.couchbase.client.scala.kv.MutationResult
 import com.couchbase.client.scala.query.QueryResult
 import com.couchbase.client.scala.json._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 class BetController(implicit val system: ActorSystem) extends BetProtocols with SprayJsonSupport {
-  val tradingService = new TradingService()
+  val betPlacementValidation = new BetPlacementValidation()
+
   val routes: Route =
     concat(
       get {
@@ -48,11 +47,11 @@ class BetController(implicit val system: ActorSystem) extends BetProtocols with 
           foundBets match {
             case Success(value) =>
               value.rowsAs[JsonObject] match {
-                case Success(row) if (row.size != 0) =>
+                case Success(row) if row.nonEmpty =>
                   println(s"Bets placed by account with id=${accountId} are: ")
-                  row.toArray.map(x => x.toString()).map(x => println(x))
+                  row.toArray.map(x => x.toString()).foreach(x => println(x))
                   complete("Success")
-                case Success(row) if (row.size == 0) =>
+                case Success(row) if row.isEmpty =>
                   println(s"No bets were found for account with id=${accountId}")
                   complete(s"No bets were found for account with id=${accountId}")
                 case Failure(ex:Exception) =>
@@ -70,11 +69,12 @@ class BetController(implicit val system: ActorSystem) extends BetProtocols with 
           foundBets match {
             case Success(value) =>
               value.rowsAs[JsonObject] match {
-                case Success(row) if (row.size != 0) =>
+                case Success(row) if row.nonEmpty =>
                   println(s"Bets of the event with id=${eventId} are: ")
-                  row.toArray.map(x => x.toString()).map(x => println(x))
+                  row.toArray.map(x => x.toString()).foreach(x =>
+                    println(x))
                   complete("Success")
-                case Success(row) if (row.size == 0) =>
+                case Success(row) if row.isEmpty =>
                   println(s"No bets were found for event with id=${eventId}")
                   complete(s"No bets were found for event with id=${eventId}")
                 case Failure(ex:Exception) =>
@@ -90,27 +90,23 @@ class BetController(implicit val system: ActorSystem) extends BetProtocols with 
       post {
         pathPrefix("bets") {
           entity(as[Bet]) { bet =>
-            val eventString: Future[Event] = tradingService.getEvent(bet.eventId)
-            eventString.onComplete { x =>
-              x match {
-                case Success(event) =>
-                  println(s"Event is: ${eventString}")
-                  complete(s"Event is: ${eventString}")
-                case Failure(ex) =>
-                  println("Failure")
-                  complete("Failure")
-              }
-            }
+            val isBetValid: Boolean = betPlacementValidation.checkIfExistsAndIsActive(bet) &
+              betPlacementValidation.isStakeInRange(bet)
 
-            val savedBet: Try[MutationResult] = BetServiceImpl.placeBet(bet)
-            savedBet match {
-              case Success(_) =>
-                println(s"Bet with id=${bet.id}, stake=${bet.stake}, eventId=${bet.eventId} was created!")
-                complete("Bet created!")
-              case Failure(exception) =>
-                complete("Error: " + exception)
+            isBetValid match {
+              case true =>
+                val savedBet: Try[MutationResult] = BetServiceImpl.placeBet(bet)
+                savedBet match {
+                  case Success(_) =>
+                    println(s"Bet with id=${bet.id}, stake=${bet.stake}, eventId=${bet.eventId} was created!")
+                    complete("Bet created!")
+                  case Failure(exception) =>
+                    complete("Error: " + exception)
+                }
+              case false =>
+                println("Bet is not valid. Can't place bet.")
+                complete("Bet is not valid. Can't place bet.")
             }
-
           }
         }
       }
