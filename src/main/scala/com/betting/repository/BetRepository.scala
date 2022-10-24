@@ -17,7 +17,7 @@ object BetRepository extends BetProtocols {
   }
 
   def placeBet(bet: Bet): Try[MutationResult] = {
-    val docId = bet.betId.toString
+    val docId = bet.id.toString
     db.betsCollection.upsert(docId, bet.asJson)
   }
 

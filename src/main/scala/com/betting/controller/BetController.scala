@@ -1,19 +1,24 @@
 package com.betting.controller
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{ResponseEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives.{as, complete, entity, path}
 import akka.http.scaladsl.server.Route
-import com.betting.domain.{Bet, BetProtocols}
+import com.betting.domain.{Bet, BetProtocols, Event}
 import akka.http.scaladsl.server.Directives._
-import com.betting.service.BetServiceImpl
+import com.betting.service.{BetServiceImpl, TradingService}
 import com.couchbase.client.scala.json.JsonObjectSafe
 import com.couchbase.client.scala.kv.MutationResult
 import com.couchbase.client.scala.query.QueryResult
 import com.couchbase.client.scala.json._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-trait BetController extends BetProtocols with SprayJsonSupport {
+class BetController(implicit val system: ActorSystem) extends BetProtocols with SprayJsonSupport {
+  val tradingService = new TradingService()
   val routes: Route =
     concat(
       get {
@@ -83,16 +88,29 @@ trait BetController extends BetProtocols with SprayJsonSupport {
         }
       },
       post {
-        path("bets") {
+        pathPrefix("bets") {
           entity(as[Bet]) { bet =>
+            val eventString: Future[Event] = tradingService.getEvent(bet.eventId)
+            eventString.onComplete { x =>
+              x match {
+                case Success(event) =>
+                  println(s"Event is: ${eventString}")
+                  complete(s"Event is: ${eventString}")
+                case Failure(ex) =>
+                  println("Failure")
+                  complete("Failure")
+              }
+            }
+
             val savedBet: Try[MutationResult] = BetServiceImpl.placeBet(bet)
             savedBet match {
               case Success(_) =>
-                println(s"Bet with id=${bet.betId}, stake=${bet.stake}, eventId=${bet.eventId} was created!")
+                println(s"Bet with id=${bet.id}, stake=${bet.stake}, eventId=${bet.eventId} was created!")
                 complete("Bet created!")
               case Failure(exception) =>
                 complete("Error: " + exception)
             }
+
           }
         }
       }
